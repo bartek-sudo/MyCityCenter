@@ -15,9 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->longText('description');
-            $table->foreignId('department_id')->constrained('departments');
+            $table->foreignId('department_id')->unsigned()->nullable();
             $table->string('status');
-            $table->string('image_path')->nullable();
+            $table->json('image_paths')->nullable();
             $table->foreignId('created_by')->constrained('users');
             $table->foreignId('processed_by')->nullable()->constrained('users');
             $table->timestamps();

@@ -64,18 +64,22 @@ class ProposalController extends Controller
     public function store(StoreProposalRequest $request)
     {
         $data = $request->validated();
-        $image = $data['image'] ?? null;
+        $images = $data['images'] ?? null;
         $data['status'] = 'pending';
         $data['created_by'] = Auth::id();
         $data['processed_by'] = null;
 
-        // dd($data);
-
-        if ($image) {
-            $data['image_path'] = $image->store('proposal/' . Str::random(), 'public');
+        if ($images) {
+            $image_paths = [];
+            $rand = Str::random();
+            foreach ($images as $image) {
+                $path = $image->store('proposal/' . $rand, 'public'); // zapisuje plik w storage/app/public/images
+                $image_paths[] = $path;
+            }
+            $data['image_paths'] = json_encode($image_paths); // zapisuje ścieżki do plików jako JSON
         }
-        Proposal::create($data);
 
+        Proposal::create($data);
 
         if (Gate::allows('is-admin')) {
             return redirect()->route('proposal.index')
@@ -128,17 +132,25 @@ class ProposalController extends Controller
     {
         $data = $request->validated();
 
-        $image = $data['image'] ?? null;
+        $images = $data['images'] ?? null;
         $data['updated_at'] = now();
-        // $data['processed_by'] = Auth::id();
         // dd($data);
 
-        if ($image) {
-            if ($proposal->image_path) {
-                Storage::disk('public')->deleteDirectory(dirname($proposal->image_path));
+        if ($images) {
+            $image_paths = json_decode($proposal->image_paths, true);
+            if ($image_paths) {
+                Storage::disk('public')->deleteDirectory(dirname($image_paths[0]));
             }
-            $data['image_path'] = $image->store('proposal/' . Str::random(), 'public');
+
+            $image_paths = [];
+            $rand = Str::random();
+            foreach ($images as $image) {
+                $path = $image->store('proposal/' . $rand, 'public'); // zapisuje plik w storage/app/public/images
+                $image_paths[] = $path;
+            }
+            $data['image_paths'] = json_encode($image_paths); // zapisuje ścieżki do plików jako JSON
         }
+
 
         $proposal->update($data);
 
@@ -156,8 +168,8 @@ class ProposalController extends Controller
      */
     public function destroy(Proposal $proposal)
     {
-        $proposal->delete($proposal->id);
         $proposal->replies()->delete();
+        $proposal->delete();
         if ($proposal->image_path) {
             Storage::disk('public')->deleteDirectory(dirname($proposal->image_path));
         }

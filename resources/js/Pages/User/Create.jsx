@@ -110,15 +110,16 @@ export default function Create({ auth, roles }) {
                   id="user_role_id"
                   className="mt-1 block w-full"
                   onChange={(e) => setData('role_id', e.target.value)}
+                  defaultValue="DEFAULT"
                 >
-                  <option value="" disabled>Select Role</option>
+                  <option value="DEFAULT" disabled>Select Role</option>
                   {roles.map((role) => (
                     <option key={role.id} value={role.id}>
                       {role.name}
                     </option>
                   ))}
                 </SelectInput>
-                <InputError message={errors.department_id} className="mt-2" />
+                <InputError message={errors.role_id} className="mt-2" />
               </div>
 
               <div className="mt-4 text-right">

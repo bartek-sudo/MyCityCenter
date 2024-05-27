@@ -2,14 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Casts\Attribute;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\DB;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
@@ -54,7 +52,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     public function proposals() {
-        return $this->hasMany(Proposal::class);
+        return $this->hasMany(Proposal::class, 'created_by');
     }
 
     public function replies() {
@@ -64,16 +62,4 @@ class User extends Authenticatable implements MustVerifyEmail
     public function hasRole(string $role) : bool {
         return $this->role->name == $role;
     }
-
-    // public function isAdmin() : bool {
-    //     return $this->role_id == DB::table('roles')->where('name', 'admin')->value('id');
-    // }
-
-    // public function isWorker() : bool {
-    //     return $this->role_id == DB::table('roles')->where('name', 'worker')->value('id');
-    // }
-
-    // public function isCitizen() : bool {
-    //     return $this->role_id == DB::table('roles')->where('name', 'citizen')->value('id');
-    // }
 }

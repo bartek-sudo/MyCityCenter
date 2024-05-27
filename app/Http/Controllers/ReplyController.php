@@ -71,7 +71,9 @@ class ReplyController extends Controller
      */
     public function edit(Reply $reply)
     {
-        //
+        return inertia('Reply/Edit', [
+            'reply' => new ReplyResource($reply),
+        ]);
     }
 
     /**

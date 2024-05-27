@@ -33,6 +33,15 @@ export default function Index({ auth, replies, queryParams = null }) {
     router.get(route('reply.index', queryParams));
   }
 
+  const deleteReply = (reply) => {
+    if (!window.confirm('Are you sure you want to delete this reply?')) {
+      return;
+    }
+    router.delete(route('reply.destroy', reply.id), {
+      preserveScroll: true,
+    });
+  }
+
   return (
     <AuthenticatedLayout
       user={auth.user}
@@ -115,15 +124,16 @@ export default function Index({ auth, replies, queryParams = null }) {
                         <td className="px-3 py-2">{reply.content}</td>
                         <td className="px-3 py-2">{reply.createdBy.name}</td>
                         <td className="px-3 py-2 text-nowrap">{reply.created_at}</td>
-                        {/* <td className="px-3 py-2 text-nowrap">{reply.updated_at}</td> */}
-                        {/* <td className="px-3 py-2">{reply.department}</td> */}
                         <td className="px-3 py-2">
                           <Link href={route('reply.edit', reply.id)} className="font-medium text-blue-600 dark:text-blue-500 hover:underline mx-1">
                             Edit
                           </Link>
-                          <Link href={route('reply.destroy', reply.id)} className="font-medium text-red-600 dark:text-red-500 hover:underline mx-1">
+                          <button
+                            onClick={(e) => deleteReply(reply)}
+                            className="font-medium text-red-600 dark:text-red-500 hover:underline mx-1"
+                          >
                             Delete
-                          </Link>
+                          </button>
                         </td>
                       </tr>
                     ))}

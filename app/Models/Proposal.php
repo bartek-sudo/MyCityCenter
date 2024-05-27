@@ -12,11 +12,15 @@ class Proposal extends Model
     protected $fillable = [
         'title',
         'description',
-        'image_path',
+        'image_paths',
         'status',
         'department_id',
         'created_by',
         'processed_by',
+    ];
+
+    protected $casts = [
+        'image_paths' => 'array', 
     ];
 
     public function replies()

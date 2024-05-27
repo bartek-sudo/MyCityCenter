@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Http\Requests\StoreDepartmentRequest;
 use App\Http\Requests\UpdateDepartmentRequest;
+use App\Http\Resources\DepartmentResource;
+use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
 
 class DepartmentController extends Controller
 {
@@ -13,7 +16,9 @@ class DepartmentController extends Controller
      */
     public function index()
     {
-        //
+        return Inertia::render('Department/Index', [
+            'departments' => DepartmentResource::collection(Department::all()),
+        ]);
     }
 
     /**
@@ -21,7 +26,10 @@ class DepartmentController extends Controller
      */
     public function create()
     {
-        //
+        if (Gate::allows('is-admin')) {
+            return Inertia::render('Department/Create');
+        }
+        return redirect()->back();
     }
 
     /**
@@ -29,7 +37,9 @@ class DepartmentController extends Controller
      */
     public function store(StoreDepartmentRequest $request)
     {
-        //
+        $data = $request->validated();
+        Department::create($data);
+        return redirect()->route('department.index');
     }
 
     /**
@@ -45,7 +55,12 @@ class DepartmentController extends Controller
      */
     public function edit(Department $department)
     {
-        //
+        if (Gate::allows('is-admin')) {
+            return Inertia::render('Department/Edit', [
+                'department' => new DepartmentResource($department),
+            ]);
+        }
+        return redirect()->back();
     }
 
     /**
@@ -53,7 +68,11 @@ class DepartmentController extends Controller
      */
     public function update(UpdateDepartmentRequest $request, Department $department)
     {
-        //
+        if (Gate::allows('is-admin')) {
+            $data = $request->validated();
+            $department->update($data);
+            return redirect()->route('department.index');
+        }
     }
 
     /**
@@ -61,6 +80,13 @@ class DepartmentController extends Controller
      */
     public function destroy(Department $department)
     {
-        //
+        if (Gate::allows('is-admin')) {
+            foreach ($department->proposals as $proposal) {
+                $proposal->department()->dissociate();
+                $proposal->save();
+            }
+            $department->delete();
+            return redirect()->route('department.index');
+        }
     }
 }

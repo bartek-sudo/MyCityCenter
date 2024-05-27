@@ -4,9 +4,11 @@ import Pagination from "@/Components/Pagination";
 import TextAreaInput from "@/Components/TextAreaInput";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { PROPOSAL_STATUS_CLASS_MAP, PROPOSAL_STATUS_TEXT_MAP } from "@/constants";
-import { Head, Link, router, useForm } from "@inertiajs/react";
+import { Head, router, useForm } from "@inertiajs/react";
 import { useState } from "react";
-export default function Show({ auth, proposal, replies }) {
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
+
+export default function Show({ auth, proposal, replies, }) {
   const { data: data1, setData: setData1, post: post1, errors: errors1, reset: reset1 } = useForm({
     content: '',
     proposal_id: proposal.id,
@@ -22,7 +24,7 @@ export default function Show({ auth, proposal, replies }) {
   const { data: data2, setData: setData2, post: post2, errors: errors2, reset: reset2 } = useForm({
     content: '',
     proposal_id: proposal.id,
-    _method: 'PUT', // Przykładowa dodatkowa opcja dla drugiego formularza
+    _method: 'PUT',
   });
 
   const onEditSubmit = (e) => {
@@ -50,6 +52,16 @@ export default function Show({ auth, proposal, replies }) {
     }
     setData2('content', reply.content);
     setEditingReply(reply);
+  };
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((currentImageIndex + 1) % proposal.image_paths.length);
+  };
+
+  const handlePreviousImage = () => {
+    setCurrentImageIndex((currentImageIndex - 1 + proposal.image_paths.length) % proposal.image_paths.length);
   };
 
   return (
@@ -109,10 +121,6 @@ export default function Show({ auth, proposal, replies }) {
                       <label className="font-bold text-lg">Department</label>
                       <p className="mt-1">{proposal.department}</p>
                     </div>
-                    {/* <div className="mt-4">
-                      <label className="font-bold text-lg">Updated By</label>
-                      <p className="mt-1">{proposal.updatedBy.name}</p>
-                    </div> */}
                   </div>
                 </div>
 
@@ -121,14 +129,21 @@ export default function Show({ auth, proposal, replies }) {
                   <p className="mt-1">{proposal.description}</p>
                 </div>
                 <div className="mt-4 ">
-                  <label className="font-bold text-lg">Image</label>
-                  <div className="mt-4 flex justify-center">
-                    <img
-                      src={proposal.image_path}
-                      alt=""
-                      className=" max-h-120 object-cover"
-                    />
-                  </div>
+                  <label className="font-bold text-lg">Images</label>
+                  {proposal.image_paths.length === 0 ? (
+                    <p className="mt-1">No images available</p>
+                  ) : (
+                    <div className="mt-4 flex justify-center">
+                      <button onClick={handlePreviousImage}>
+                        <ChevronLeftIcon className="w-6 h-6" />
+                      </button>
+                      <img src={proposal.image_paths[currentImageIndex]} alt="" className=" max-h-120 object-cover" />
+                      <button onClick={handleNextImage}>
+                        <ChevronRightIcon className="w-6 h-6" />
+                      </button>
+                    </div>
+                  )}
+
                 </div>
               </div>
             </div>

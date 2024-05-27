@@ -23,7 +23,7 @@ class UpdateProposalRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'image' => ['nullable', 'image', 'max:2048'],
+            'images.*' => ['nullable', 'image', 'max:2048'],
             'description' => ['required', 'string'],
             'department_id' => ['required', 'exists:departments,id'],
             'status' => ['required', 'in:pending,in_progress,approved,rejected'],

@@ -8,6 +8,10 @@ import { Link } from '@inertiajs/react';
 export default function AuthenticatedLayout({ user, header, children }) {
   const [showingNavigationDropdown, setShowingNavigationDropdown] = useState(false);
 
+  if (!user) {
+    user = { role_id: 4 }
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <nav className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
@@ -23,7 +27,7 @@ export default function AuthenticatedLayout({ user, header, children }) {
               {user.role_id === 1 &&
                 <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                   <NavLink href={route('dashboard')} active={route().current('dashboard')}>
-                    Dashboard1
+                    Dashboard
                   </NavLink>
                   <NavLink href={route('proposal.myProposals')} active={route().current('proposal.myProposals')}>
                     My Proposals
@@ -36,7 +40,7 @@ export default function AuthenticatedLayout({ user, header, children }) {
               {user.role_id === 2 &&
                 <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                   <NavLink href={route('dashboard')} active={route().current('dashboard')}>
-                    Dashboard2
+                    Dashboard
                   </NavLink>
                   <NavLink href={route('proposal.myProposals')} active={route().current('proposal.myProposals')}>
                     My Proposals
@@ -52,7 +56,7 @@ export default function AuthenticatedLayout({ user, header, children }) {
               {user.role_id === 3 &&
                 <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                   <NavLink href={route('dashboard')} active={route().current('dashboard')}>
-                    Dashboard3
+                    Dashboard
                   </NavLink>
                   <NavLink href={route('proposal.index')} active={route().current('proposal.index')}>
                     Proposals
@@ -67,7 +71,16 @@ export default function AuthenticatedLayout({ user, header, children }) {
                     Departments
                   </NavLink>
                 </div>
-
+              }
+              {user.role_id === 4 &&
+                <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                  <NavLink href={route('dashboard')} active={route().current('dashboard')}>
+                    Dashboard
+                  </NavLink>
+                  <NavLink href={route('department.index')} active={route().current('department.index')}>
+                    Departments
+                  </NavLink>
+                </div>
               }
 
             </div>
@@ -81,7 +94,7 @@ export default function AuthenticatedLayout({ user, header, children }) {
                         type="button"
                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition ease-in-out duration-150"
                       >
-                        {user.name}
+                        {user && user.name ? user.name : "Guest"}
 
                         <svg
                           className="ms-2 -me-0.5 h-4 w-4"
@@ -100,10 +113,19 @@ export default function AuthenticatedLayout({ user, header, children }) {
                   </Dropdown.Trigger>
 
                   <Dropdown.Content>
-                    <Dropdown.Link href={route('profile.edit')}>Profile</Dropdown.Link>
-                    <Dropdown.Link href={route('logout')} method="post" as="button">
-                      Log Out
-                    </Dropdown.Link>
+                    {user && user.name ? (
+                      <>
+                        <Dropdown.Link href={route('profile.edit')}>Profile</Dropdown.Link>
+                        <Dropdown.Link href={route('logout')} method="post" as="button">
+                          Log Out
+                        </Dropdown.Link>
+                      </>
+                    ) : (
+                      <>
+                        <Dropdown.Link href={route('login')}>Log In</Dropdown.Link>
+                        <Dropdown.Link href={route('register')}>Register</Dropdown.Link>
+                      </>
+                    )}
                   </Dropdown.Content>
                 </Dropdown>
               </div>

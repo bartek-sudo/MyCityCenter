@@ -97,26 +97,30 @@ export default function Edit({ auth, proposal, departments }) {
               <div className="mt-4">
                 <InputLabel
                   htmlFor="proposal_image_path"
-                  value="Proposal Image"
+                  value="Proposal Images"
                 />
                 <TextInput
                   id="proposal_image_path"
                   type="file"
-                  name="image"
+                  name="images"
+                  multiple
                   className="mt-1 block w-full"
-                  onChange={(e) => setData('image', e.target.files[0])}
+                  onChange={(e) => setData('images', Array.from(e.target.files))}
                 />
-                <InputError message={errors.image} className="mt-2" />
+                <InputError message={errors.images} className="mt-2" />
               </div>
-              {proposal.image_path && (
-                <div className="mt-4">
-                  <img
-                    src={proposal.image_path}
-                    alt={proposal.title}
-                    className="w-32 h-32 object-cover"
-                  />
-                </div>
-              )}
+              <div className="flex gap-2">
+                {proposal.image_paths && proposal.image_paths.map((image_path, index) => (
+                  <div key={index} className="mt-4">
+                    <img
+                      src={image_path}
+                      alt={`Proposal Image ${index + 1}`}
+                      className="w-32 h-32 object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+
               {(auth.user.role_id === 2 || auth.user.role_id === 3) &&
                 <div className="mt-4">
                   <InputLabel

@@ -21,9 +21,9 @@ class ProposalFactory extends Factory
             'description' => $this->faker->realText,
             'department_id' => 1,
             'status' => $this->faker->randomElement(['pending', 'in_progress', 'approved', 'rejected']),
-            'image_path' => fake()->imageUrl(),
-            'created_by' => 1,
-            'processed_by' => 1,
+            'image_paths' => json_encode([$this->faker->imageUrl()]),
+            'created_by' => $this->faker->numberBetween(4, 6),
+            'processed_by' => $this->faker->numberBetween(2, 3),
             'created_at' => now(),
             'updated_at' => now(),
         ];
