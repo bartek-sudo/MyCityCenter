@@ -49,6 +49,7 @@ export default function Create({ auth, departments }) {
                   type="file"
                   name="images"
                   multiple
+                  accept="image/jpeg,image/png"
                   className="mt-1 block w-full"
                   onChange={(e) => setData('images', Array.from(e.target.files))}
                 />

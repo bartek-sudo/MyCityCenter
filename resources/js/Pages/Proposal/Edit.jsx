@@ -8,7 +8,7 @@ import { Head, Link, useForm } from "@inertiajs/react";
 
 export default function Edit({ auth, proposal, departments }) {
   const { data, setData, post, errors, reset } = useForm({
-    image: '',
+    images: '',
     title: proposal.title || '',
     description: proposal.description || '',
     department_id: proposal.department_id || '',
@@ -104,6 +104,7 @@ export default function Edit({ auth, proposal, departments }) {
                   type="file"
                   name="images"
                   multiple
+                  accept="image/jpeg,image/png"
                   className="mt-1 block w-full"
                   onChange={(e) => setData('images', Array.from(e.target.files))}
                 />

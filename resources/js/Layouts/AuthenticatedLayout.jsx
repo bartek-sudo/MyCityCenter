@@ -158,11 +158,64 @@ export default function AuthenticatedLayout({ user, header, children }) {
         </div>
 
         <div className={(showingNavigationDropdown ? 'block' : 'hidden') + ' sm:hidden'}>
-          <div className="pt-2 pb-3 space-y-1">
-            <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>
-              Dashboard
-            </ResponsiveNavLink>
-          </div>
+          {user.role_id === 1 &&
+            <div className="pt-2 pb-3 space-y-1">
+              <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>
+                Dashboard
+              </ResponsiveNavLink>
+              <ResponsiveNavLink href={route('proposal.myProposals')} active={route().current('proposal.myProposals')}>
+                My Proposals
+              </ResponsiveNavLink>
+              <ResponsiveNavLink href={route('department.index')} active={route().current('department.index')}>
+                Departments
+              </ResponsiveNavLink>
+            </div>
+          }
+          {user.role_id === 2 &&
+            <div className="pt-2 pb-3 space-y-1">
+              <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>
+                Dashboard
+              </ResponsiveNavLink>
+              <ResponsiveNavLink href={route('proposal.myProposals')} active={route().current('proposal.myProposals')}>
+                My Proposals
+              </ResponsiveNavLink>
+              <ResponsiveNavLink href={route('proposal.index')} active={route().current('proposal.index')}>
+                All Proposals
+              </ResponsiveNavLink>
+              <ResponsiveNavLink href={route('department.index')} active={route().current('department.index')}>
+                Departments
+              </ResponsiveNavLink>
+            </div>
+          }
+          {user.role_id === 3 &&
+            <div className="pt-2 pb-3 space-y-1">
+              <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>
+                Dashboard
+              </ResponsiveNavLink>
+              <ResponsiveNavLink href={route('proposal.index')} active={route().current('proposal.index')}>
+                Proposals
+              </ResponsiveNavLink>
+              <ResponsiveNavLink href={route('reply.index')} active={route().current('reply.index')}>
+                All Replies
+              </ResponsiveNavLink>
+              <ResponsiveNavLink href={route('user.index')} active={route().current('user.index')}>
+                Users
+              </ResponsiveNavLink>
+              <ResponsiveNavLink href={route('department.index')} active={route().current('department.index')}>
+                Departments
+              </ResponsiveNavLink>
+            </div>
+          }
+          {user.role_id === 4 &&
+            <div className="pt-2 pb-3 space-y-1">
+              <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>
+                Dashboard
+              </ResponsiveNavLink>
+              <ResponsiveNavLink href={route('department.index')} active={route().current('department.index')}>
+                Departments
+              </ResponsiveNavLink>
+            </div>
+          }
 
           <div className="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">
             <div className="px-4">

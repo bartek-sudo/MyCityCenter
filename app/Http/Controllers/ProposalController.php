@@ -99,12 +99,11 @@ class ProposalController extends Controller
             abort(403);
         }
 
-        $query = $proposal->replies();
-
-        $replies = $query
-            ->orderBy('created_at', 'asc')
-            ->paginate(10)
-            ->onEachSide(1);
+        $replies = $proposal->replies()
+        ->orderBy('created_at', 'asc')
+        ->paginate(10)
+        ->onEachSide(1);
+        
         return inertia('Proposal/Show', [
             'proposal' => new ProposalResource($proposal),
             'replies' => ReplyResource::collection($replies),

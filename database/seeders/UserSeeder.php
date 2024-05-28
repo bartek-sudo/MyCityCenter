@@ -24,8 +24,8 @@ class UserSeeder extends Seeder
         User::insert(
             [
                 [
-                    'name' => 'Bilbo Baggins',
-                    'email' => 'krolbartek14@gmail.com',
+                    'name' => 'Admin',
+                    'email' => 'admin@gmail.com',
                     'password' => bcrypt('123.321A'),
                     'role_id' => 3,
                     'email_verified_at' => now(),
