@@ -8,6 +8,11 @@ set -e  # Zatrzymaj przy błędzie
 echo "=========================================="
 echo "MyCityCenter - Setup Script (Laravel)"
 echo "=========================================="
+echo ""
+echo "UWAGA: Laravel 11 wymaga PHP 8.2 lub nowszej."
+echo "Skrypt automatycznie spróbuje zainstalować PHP 8.2, 8.1 lub 8.0."
+echo "Dla Ubuntu 18.04 może być potrzebna aktualizacja systemu."
+echo ""
 
 # Aktualizacja systemu
 echo "[1/12] Aktualizacja systemu..."
@@ -28,29 +33,112 @@ sudo apt-get install -y \
     gnupg \
     lsb-release
 
-# Instalacja PHP 8.2 i wymaganych rozszerzeń
-echo "[3/12] Instalacja PHP 8.2 i rozszerzeń..."
-sudo add-apt-repository ppa:ondrej/php -y
-sudo apt-get update
-sudo apt-get install -y \
-    php8.2 \
-    php8.2-fpm \
-    php8.2-cli \
-    php8.2-common \
-    php8.2-mysql \
-    php8.2-pgsql \
-    php8.2-zip \
-    php8.2-gd \
-    php8.2-mbstring \
-    php8.2-curl \
-    php8.2-xml \
-    php8.2-bcmath \
-    php8.2-intl \
-    php8.2-readline \
-    php8.2-tokenizer
+# Instalacja PHP i wymaganych rozszerzeń
+echo "[3/12] Instalacja PHP i rozszerzeń..."
+
+# Sprawdzenie wersji Ubuntu
+UBUNTU_VERSION=$(lsb_release -rs)
+echo "Wykryto Ubuntu wersję: $UBUNTU_VERSION"
+
+# Dodanie repozytorium PHP
+echo "Dodawanie repozytorium PHP..."
+set +e
+PPA_ADDED=0
+if sudo add-apt-repository ppa:ondrej/php -y >/dev/null 2>&1; then
+    PPA_ADDED=1
+    echo "Repozytorium PHP dodane pomyślnie"
+else
+    echo "Nie udało się dodać PPA. Próba alternatywnej metody..."
+    sudo apt-get install -y software-properties-common
+    if sudo LC_ALL=C.UTF-8 add-apt-repository ppa:ondrej/php -y >/dev/null 2>&1; then
+        PPA_ADDED=1
+        echo "Repozytorium PHP dodane alternatywną metodą"
+    fi
+fi
+set -e
+
+if [ $PPA_ADDED -eq 1 ]; then
+    echo "Aktualizacja listy pakietów..."
+    sudo apt-get update
+else
+    echo "OSTRZEŻENIE: Nie udało się dodać repozytorium PHP PPA."
+    echo "Próba instalacji PHP z domyślnych repozytoriów Ubuntu..."
+    sudo apt-get update
+fi
+
+# Funkcja do próby instalacji konkretnej wersji PHP
+install_php_version() {
+    local php_version=$1
+    echo "Próba instalacji PHP $php_version..."
+
+    # Tymczasowo wyłącz set -e dla tej funkcji
+    set +e
+    sudo apt-get install -y \
+        php${php_version} \
+        php${php_version}-fpm \
+        php${php_version}-cli \
+        php${php_version}-common \
+        php${php_version}-mysql \
+        php${php_version}-pgsql \
+        php${php_version}-zip \
+        php${php_version}-gd \
+        php${php_version}-mbstring \
+        php${php_version}-curl \
+        php${php_version}-xml \
+        php${php_version}-bcmath \
+        php${php_version}-intl \
+        php${php_version}-readline \
+        php${php_version}-tokenizer >/dev/null 2>&1
+
+    local install_status=$?
+    set -e  # Włącz z powrotem set -e
+
+    if [ $install_status -eq 0 ]; then
+        echo "PHP $php_version zainstalowane pomyślnie!"
+        PHP_VER=$php_version
+        return 0
+    else
+        echo "Nie udało się zainstalować PHP $php_version"
+        return 1
+    fi
+}
+
+# Próba instalacji PHP w kolejności: 8.2, 8.1, 8.0
+PHP_VER=""
+if ! install_php_version "8.2"; then
+    if ! install_php_version "8.1"; then
+        if ! install_php_version "8.0"; then
+            echo ""
+            echo "=========================================="
+            echo "BŁĄD: Nie udało się zainstalować PHP 8.0 lub nowszej wersji!"
+            echo "=========================================="
+            echo ""
+            echo "Laravel 11 wymaga PHP 8.2 lub nowszej."
+            echo ""
+            echo "Możliwe rozwiązania:"
+            echo "1. Zaktualizuj Ubuntu do wersji 20.04 lub nowszej"
+            echo "2. Ręczna instalacja PHP 8.2 z PPA:"
+            echo "   sudo add-apt-repository ppa:ondrej/php -y"
+            echo "   sudo apt-get update"
+            echo "   sudo apt-get install php8.2 php8.2-fpm php8.2-cli php8.2-common"
+            echo "   (i pozostałe rozszerzenia php8.2-*)"
+            echo "3. Użyj innej wersji Ubuntu (20.04 LTS lub 22.04 LTS)"
+            echo ""
+            exit 1
+        fi
+    fi
+fi
+
+# Ustawienie domyślnej wersji PHP
+sudo update-alternatives --set php /usr/bin/php${PHP_VER} 2>/dev/null || true
+
+# Eksport zmiennej dla użycia w dalszej części skryptu
+export PHP_VER
 
 # Weryfikacja instalacji PHP
+echo "Zainstalowana wersja PHP:"
 php -v
+echo "Używana wersja PHP: $PHP_VER"
 
 # Instalacja Composer
 echo "[4/12] Instalacja Composer..."
@@ -174,7 +262,7 @@ echo "[12/12] Instalacja i konfiguracja Nginx..."
 sudo apt-get install -y nginx
 
 # Konfiguracja Nginx dla Laravel
-sudo tee /etc/nginx/sites-available/mycitycenter > /dev/null <<'EOF'
+sudo tee /etc/nginx/sites-available/mycitycenter > /dev/null <<EOF
 server {
     listen 80;
     listen [::]:80;
@@ -189,7 +277,7 @@ server {
     charset utf-8;
 
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
     location = /favicon.ico { access_log off; log_not_found off; }
@@ -197,9 +285,9 @@ server {
 
     error_page 404 /index.php;
 
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+    location ~ \.php\$ {
+        fastcgi_pass unix:/var/run/php/php${PHP_VER}-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
         include fastcgi_params;
     }
 
@@ -217,8 +305,8 @@ sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 
 # Restart usług
-sudo systemctl restart php8.2-fpm
-sudo systemctl enable php8.2-fpm
+sudo systemctl restart php${PHP_VER}-fpm
+sudo systemctl enable php${PHP_VER}-fpm
 sudo systemctl restart nginx
 sudo systemctl enable nginx
 
@@ -265,12 +353,12 @@ echo "  - http://localhost"
 echo ""
 echo "Przydatne komendy:"
 echo "  - Status Nginx: sudo systemctl status nginx"
-echo "  - Status PHP-FPM: sudo systemctl status php8.2-fpm"
+echo "  - Status PHP-FPM: sudo systemctl status php${PHP_VER}-fpm"
 echo "  - Status PostgreSQL: sudo systemctl status postgresql"
 echo "  - Logi Nginx: sudo tail -f /var/log/nginx/error.log"
 echo "  - Logi Laravel: tail -f /opt/MyCityCenter/storage/logs/laravel.log"
 echo "  - Restart Nginx: sudo systemctl restart nginx"
-echo "  - Restart PHP-FPM: sudo systemctl restart php8.2-fpm"
+echo "  - Restart PHP-FPM: sudo systemctl restart php${PHP_VER}-fpm"
 echo "  - Uruchomienie migracji: cd /opt/MyCityCenter && php artisan migrate"
 echo "  - Tworzenie kopii zapasowej: sudo /usr/local/bin/mycitycenter-backup.sh"
 echo ""
