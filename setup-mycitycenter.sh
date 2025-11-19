@@ -51,27 +51,27 @@ if sudo add-apt-repository ppa:ondrej/php -y >/dev/null 2>&1; then
     echo "Repozytorium PHP dodane pomyślnie (PPA)"
 else
     echo "Nie udało się dodać PPA. Próba alternatywnej metody (DEB.SURY.ORG)..."
-    
+
     # Próba 2: DEB.SURY.ORG (bardziej niezawodne dla Ubuntu 18.04)
     CODENAME=$(lsb_release -sc)
     echo "Wykryto kodową nazwę dystrybucji: $CODENAME"
-    
+
     # Instalacja wymaganych narzędzi
     sudo apt-get install -y software-properties-common apt-transport-https lsb-release ca-certificates curl
-    
+
     # Dodanie klucza GPG
     if curl -fsSL https://packages.sury.org/php/apt.gpg | sudo gpg --dearmor -o /usr/share/keyrings/deb.sury.org-php.gpg 2>/dev/null; then
         echo "Klucz GPG dodany pomyślnie"
-        
+
         # Dodanie repozytorium
         echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $CODENAME main" | sudo tee /etc/apt/sources.list.d/sury-php.list >/dev/null
-        
+
         if [ $? -eq 0 ]; then
             PPA_ADDED=1
             echo "Repozytorium PHP dodane pomyślnie (DEB.SURY.ORG)"
         fi
     fi
-    
+
     # Próba 3: PPA z ustawionym locale
     if [ $PPA_ADDED -eq 0 ]; then
         echo "Próba dodania PPA z ustawionym locale..."
