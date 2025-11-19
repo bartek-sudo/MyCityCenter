@@ -44,15 +44,41 @@ echo "Wykryto Ubuntu wersję: $UBUNTU_VERSION"
 echo "Dodawanie repozytorium PHP..."
 set +e
 PPA_ADDED=0
+
+# Próba 1: Standardowe PPA
 if sudo add-apt-repository ppa:ondrej/php -y >/dev/null 2>&1; then
     PPA_ADDED=1
-    echo "Repozytorium PHP dodane pomyślnie"
+    echo "Repozytorium PHP dodane pomyślnie (PPA)"
 else
-    echo "Nie udało się dodać PPA. Próba alternatywnej metody..."
-    sudo apt-get install -y software-properties-common
-    if sudo LC_ALL=C.UTF-8 add-apt-repository ppa:ondrej/php -y >/dev/null 2>&1; then
-        PPA_ADDED=1
-        echo "Repozytorium PHP dodane alternatywną metodą"
+    echo "Nie udało się dodać PPA. Próba alternatywnej metody (DEB.SURY.ORG)..."
+    
+    # Próba 2: DEB.SURY.ORG (bardziej niezawodne dla Ubuntu 18.04)
+    CODENAME=$(lsb_release -sc)
+    echo "Wykryto kodową nazwę dystrybucji: $CODENAME"
+    
+    # Instalacja wymaganych narzędzi
+    sudo apt-get install -y software-properties-common apt-transport-https lsb-release ca-certificates curl
+    
+    # Dodanie klucza GPG
+    if curl -fsSL https://packages.sury.org/php/apt.gpg | sudo gpg --dearmor -o /usr/share/keyrings/deb.sury.org-php.gpg 2>/dev/null; then
+        echo "Klucz GPG dodany pomyślnie"
+        
+        # Dodanie repozytorium
+        echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $CODENAME main" | sudo tee /etc/apt/sources.list.d/sury-php.list >/dev/null
+        
+        if [ $? -eq 0 ]; then
+            PPA_ADDED=1
+            echo "Repozytorium PHP dodane pomyślnie (DEB.SURY.ORG)"
+        fi
+    fi
+    
+    # Próba 3: PPA z ustawionym locale
+    if [ $PPA_ADDED -eq 0 ]; then
+        echo "Próba dodania PPA z ustawionym locale..."
+        if sudo LC_ALL=C.UTF-8 add-apt-repository ppa:ondrej/php -y >/dev/null 2>&1; then
+            PPA_ADDED=1
+            echo "Repozytorium PHP dodane pomyślnie (PPA z locale)"
+        fi
     fi
 fi
 set -e
@@ -61,7 +87,7 @@ if [ $PPA_ADDED -eq 1 ]; then
     echo "Aktualizacja listy pakietów..."
     sudo apt-get update
 else
-    echo "OSTRZEŻENIE: Nie udało się dodać repozytorium PHP PPA."
+    echo "OSTRZEŻENIE: Nie udało się dodać repozytorium PHP."
     echo "Próba instalacji PHP z domyślnych repozytoriów Ubuntu..."
     sudo apt-get update
 fi
