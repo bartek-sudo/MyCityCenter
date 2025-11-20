@@ -83,7 +83,20 @@ else
 fi
 set -e
 
-if [ $PPA_ADDED -eq 1 ]; then
+# Dodaj również DEB.SURY.ORG jako dodatkowe repozytorium (może mieć więcej pakietów)
+CODENAME=$(lsb_release -sc)
+echo "Dodawanie dodatkowego repozytorium DEB.SURY.ORG..."
+set +e
+if [ ! -f /usr/share/keyrings/deb.sury.org-php.gpg ]; then
+    curl -fsSL https://packages.sury.org/php/apt.gpg | sudo gpg --dearmor -o /usr/share/keyrings/deb.sury.org-php.gpg 2>/dev/null
+    if [ $? -eq 0 ]; then
+        echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $CODENAME main" | sudo tee /etc/apt/sources.list.d/sury-php.list >/dev/null
+        echo "Repozytorium DEB.SURY.ORG dodane jako dodatkowe źródło"
+    fi
+fi
+set -e
+
+if [ $PPA_ADDED -eq 1 ] || [ -f /etc/apt/sources.list.d/sury-php.list ]; then
     echo "Aktualizacja listy pakietów..."
     sudo apt-get update
 else
@@ -92,42 +105,94 @@ else
     sudo apt-get update
 fi
 
+# Funkcja sprawdzająca dostępność pakietu
+check_package_available() {
+    local package=$1
+    apt-cache show "$package" >/dev/null 2>&1
+    return $?
+}
+
 # Funkcja do próby instalacji konkretnej wersji PHP
 install_php_version() {
     local php_version=$1
     echo "Próba instalacji PHP $php_version..."
-
-    # Tymczasowo wyłącz set -e dla tej funkcji
-    set +e
-    sudo apt-get install -y \
-        php${php_version} \
-        php${php_version}-fpm \
-        php${php_version}-cli \
-        php${php_version}-common \
-        php${php_version}-mysql \
-        php${php_version}-pgsql \
-        php${php_version}-zip \
-        php${php_version}-gd \
-        php${php_version}-mbstring \
-        php${php_version}-curl \
-        php${php_version}-xml \
-        php${php_version}-bcmath \
-        php${php_version}-intl \
-        php${php_version}-readline \
-        php${php_version}-tokenizer >/dev/null 2>&1
-
-    local install_status=$?
-    set -e  # Włącz z powrotem set -e
-
-    if [ $install_status -eq 0 ]; then
-        echo "PHP $php_version zainstalowane pomyślnie!"
-        PHP_VER=$php_version
-        return 0
-    else
-        echo "Nie udało się zainstalować PHP $php_version"
+    
+    # Sprawdź czy podstawowe pakiety są dostępne
+    if ! check_package_available "php${php_version}"; then
+        echo "Pakiet php${php_version} nie jest dostępny w repozytoriach"
         return 1
     fi
+    
+    echo "Sprawdzanie dostępności pakietów PHP ${php_version}..."
+    set +e
+    
+    # Lista pakietów do zainstalowania
+    local packages=(
+        "php${php_version}"
+        "php${php_version}-fpm"
+        "php${php_version}-cli"
+        "php${php_version}-common"
+        "php${php_version}-mysql"
+        "php${php_version}-pgsql"
+        "php${php_version}-zip"
+        "php${php_version}-gd"
+        "php${php_version}-mbstring"
+        "php${php_version}-curl"
+        "php${php_version}-xml"
+        "php${php_version}-bcmath"
+        "php${php_version}-intl"
+        "php${php_version}-readline"
+        "php${php_version}-tokenizer"
+    )
+    
+    # Sprawdź dostępność wszystkich pakietów
+    local missing_packages=()
+    for pkg in "${packages[@]}"; do
+        if ! check_package_available "$pkg"; then
+            missing_packages+=("$pkg")
+        fi
+    done
+    
+    if [ ${#missing_packages[@]} -gt 0 ]; then
+        echo "Brakujące pakiety: ${missing_packages[*]}"
+        echo "Próba instalacji dostępnych pakietów..."
+    fi
+    
+    # Próba instalacji (pakiety, które nie istnieją zostaną pominięte)
+    sudo apt-get install -y "${packages[@]}" 2>&1 | tee /tmp/php_install.log
+    
+    local install_status=${PIPESTATUS[0]}
+    set -e
+    
+    # Sprawdź czy podstawowe pakiety zostały zainstalowane
+    if [ $install_status -eq 0 ] || command -v php${php_version} >/dev/null 2>&1; then
+        # Sprawdź czy php działa
+        if /usr/bin/php${php_version} -v >/dev/null 2>&1; then
+            echo "PHP $php_version zainstalowane pomyślnie!"
+            PHP_VER=$php_version
+            return 0
+        fi
+    fi
+    
+    echo "Nie udało się zainstalować PHP $php_version"
+    if [ -f /tmp/php_install.log ]; then
+        echo "Ostatnie błędy:"
+        tail -20 /tmp/php_install.log
+    fi
+    return 1
 }
+
+# Sprawdzenie dostępnych wersji PHP w repozytoriach
+echo "Sprawdzanie dostępnych wersji PHP w repozytoriach..."
+set +e
+AVAILABLE_VERSIONS=$(apt-cache search ^php[0-9] | grep -oP '^php\d+\.\d+' | sort -u | grep -oP '\d+\.\d+' | sort -V -r)
+set -e
+
+if [ -n "$AVAILABLE_VERSIONS" ]; then
+    echo "Dostępne wersje PHP:"
+    echo "$AVAILABLE_VERSIONS" | head -5
+    echo ""
+fi
 
 # Próba instalacji PHP w kolejności: 8.2, 8.1, 8.0
 PHP_VER=""
