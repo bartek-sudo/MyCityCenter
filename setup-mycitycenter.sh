@@ -116,16 +116,16 @@ check_package_available() {
 install_php_version() {
     local php_version=$1
     echo "Próba instalacji PHP $php_version..."
-    
+
     # Sprawdź czy podstawowe pakiety są dostępne
     if ! check_package_available "php${php_version}"; then
         echo "Pakiet php${php_version} nie jest dostępny w repozytoriach"
         return 1
     fi
-    
+
     echo "Sprawdzanie dostępności pakietów PHP ${php_version}..."
     set +e
-    
+
     # Lista pakietów do zainstalowania
     local packages=(
         "php${php_version}"
@@ -144,7 +144,7 @@ install_php_version() {
         "php${php_version}-readline"
         "php${php_version}-tokenizer"
     )
-    
+
     # Sprawdź dostępność wszystkich pakietów
     local missing_packages=()
     for pkg in "${packages[@]}"; do
@@ -152,18 +152,18 @@ install_php_version() {
             missing_packages+=("$pkg")
         fi
     done
-    
+
     if [ ${#missing_packages[@]} -gt 0 ]; then
         echo "Brakujące pakiety: ${missing_packages[*]}"
         echo "Próba instalacji dostępnych pakietów..."
     fi
-    
+
     # Próba instalacji (pakiety, które nie istnieją zostaną pominięte)
     sudo apt-get install -y "${packages[@]}" 2>&1 | tee /tmp/php_install.log
-    
+
     local install_status=${PIPESTATUS[0]}
     set -e
-    
+
     # Sprawdź czy podstawowe pakiety zostały zainstalowane
     if [ $install_status -eq 0 ] || command -v php${php_version} >/dev/null 2>&1; then
         # Sprawdź czy php działa
@@ -173,7 +173,7 @@ install_php_version() {
             return 0
         fi
     fi
-    
+
     echo "Nie udało się zainstalować PHP $php_version"
     if [ -f /tmp/php_install.log ]; then
         echo "Ostatnie błędy:"
