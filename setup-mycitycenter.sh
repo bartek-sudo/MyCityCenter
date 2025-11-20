@@ -38,29 +38,78 @@ sudo apt-get install -y \
 # Krok 4: Dodanie repozytorium PHP (tylko PPA ondrej/php)
 echo "[4/13] Dodawanie repozytorium PHP (PPA ondrej/php)..."
 UBUNTU_VERSION=$(lsb_release -rs)
-echo "Wykryto Ubuntu wersję: $UBUNTU_VERSION"
+CODENAME=$(lsb_release -sc)
+echo "Wykryto Ubuntu wersję: $UBUNTU_VERSION ($CODENAME)"
 
 # Sprawdź czy PPA już istnieje
-if ! grep -q "ondrej/php" /etc/apt/sources.list.d/*.list 2>/dev/null; then
-    sudo add-apt-repository ppa:ondrej/php -y
-    echo "✓ Repozytorium PPA dodane"
-else
+PPA_EXISTS=0
+if grep -q "ondrej/php" /etc/apt/sources.list.d/*.list 2>/dev/null; then
     echo "✓ Repozytorium PPA już istnieje"
+    PPA_EXISTS=1
+else
+    echo "Dodawanie repozytorium PPA..."
+    if sudo add-apt-repository ppa:ondrej/php -y; then
+        echo "✓ Repozytorium PPA dodane"
+        PPA_EXISTS=1
+    else
+        echo "✗ Nie udało się dodać PPA"
+    fi
 fi
 
 # Aktualizacja listy pakietów
+echo "Aktualizacja listy pakietów..."
 sudo apt-get update
+
+# Sprawdź czy PPA ma pakiety PHP 8.x
+if [ $PPA_EXISTS -eq 1 ]; then
+    echo "Sprawdzanie pakietów PHP 8.x w PPA..."
+    PHP8_AVAILABLE=$(apt-cache search ^php8 2>/dev/null | wc -l)
+    if [ "$PHP8_AVAILABLE" -gt 0 ]; then
+        echo "✓ Znaleziono pakiety PHP 8.x w PPA"
+    else
+        echo "✗ OSTRZEŻENIE: Nie znaleziono pakietów PHP 8.x w PPA"
+        echo "  PPA może nie mieć pakietów dla Ubuntu $UBUNTU_VERSION ($CODENAME)"
+    fi
+fi
+echo ""
 
 # Krok 5: Instalacja PHP
 echo "[5/13] Instalacja PHP..."
 PHP_VER=""
+
+# Sprawdź dostępne wersje PHP po dodaniu PPA
+echo "  Sprawdzanie dostępnych wersji PHP..."
+AVAILABLE_PHP=$(apt-cache search ^php[0-9] 2>/dev/null | grep -oE '^php[0-9]\.[0-9]' | sort -u | grep -oE '[0-9]\.[0-9]' | sort -V -r)
+if [ -n "$AVAILABLE_PHP" ]; then
+    echo "  Dostępne wersje PHP:"
+    echo "$AVAILABLE_PHP" | while read ver; do
+        echo "    - PHP $ver"
+    done
+else
+    echo "  OSTRZEŻENIE: Nie znaleziono pakietów PHP w repozytoriach!"
+fi
+echo ""
+
+# Funkcja sprawdzająca dostępność pakietu
+check_php_package() {
+    local version=$1
+    apt-cache show "php${version}" >/dev/null 2>&1
+    return $?
+}
 
 # Funkcja instalacji PHP
 install_php() {
     local version=$1
     echo "  Próba instalacji PHP $version..."
     
-    if sudo apt-get install -y \
+    # Sprawdź czy pakiet jest dostępny
+    if ! check_php_package "$version"; then
+        echo "    Pakiet php${version} nie jest dostępny"
+        return 1
+    fi
+    
+    set +e
+    sudo apt-get install -y \
         php${version} \
         php${version}-fpm \
         php${version}-cli \
@@ -75,34 +124,55 @@ install_php() {
         php${version}-bcmath \
         php${version}-intl \
         php${version}-readline \
-        php${version}-tokenizer 2>/dev/null; then
-        
+        php${version}-tokenizer >/tmp/php_install_${version}.log 2>&1
+    
+    local install_status=$?
+    set -e
+    
+    if [ $install_status -eq 0 ]; then
         if /usr/bin/php${version} -v >/dev/null 2>&1; then
             PHP_VER=$version
             echo "  ✓ PHP $version zainstalowane pomyślnie!"
             return 0
         fi
+    else
+        echo "    Błąd instalacji - sprawdź /tmp/php_install_${version}.log"
     fi
     return 1
 }
 
-# Próba instalacji PHP 8.2, 8.1, 8.0
+# Próba instalacji PHP 8.2, 8.1, 8.0, 7.4
 if install_php "8.2"; then
     : # PHP 8.2 zainstalowane
 elif install_php "8.1"; then
     : # PHP 8.1 zainstalowane
 elif install_php "8.0"; then
     : # PHP 8.0 zainstalowane
+elif install_php "7.4"; then
+    echo ""
+    echo "  OSTRZEŻENIE: Zainstalowano PHP 7.4, ale Laravel 11 wymaga PHP 8.2+"
+    echo "  Aplikacja może nie działać poprawnie!"
+    echo ""
 else
     echo ""
     echo "=========================================="
-    echo "BŁĄD: Nie udało się zainstalować PHP!"
+    echo "BŁĄD: Nie udało się zainstalować PHP 8.0+!"
     echo "=========================================="
     echo ""
-    echo "Sprawdź dostępne wersje PHP:"
-    echo "  apt-cache search ^php[0-9] | grep -E '^php[0-9]'"
+    echo "Dostępne wersje PHP w repozytoriach:"
+    apt-cache search ^php[0-9] 2>/dev/null | grep -E '^php[0-9]\.[0-9]' | head -5
     echo ""
-    echo "Dla Ubuntu 18.04 może być potrzebna aktualizacja do 20.04 LTS."
+    echo "Rozwiązania:"
+    echo "1. Sprawdź czy PPA ondrej/php zostało dodane:"
+    echo "   ls -la /etc/apt/sources.list.d/ | grep ondrej"
+    echo ""
+    echo "2. Spróbuj ręcznie dodać PPA:"
+    echo "   sudo add-apt-repository ppa:ondrej/php -y"
+    echo "   sudo apt-get update"
+    echo "   apt-cache search php8"
+    echo ""
+    echo "3. Dla Ubuntu 18.04 może być potrzebna aktualizacja do 20.04 LTS"
+    echo "   (Laravel 11 wymaga PHP 8.2, który może nie być dostępny dla Ubuntu 18.04)"
     echo ""
     exit 1
 fi
