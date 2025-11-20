@@ -1,26 +1,28 @@
 #!/bin/bash
 
 # MyCityCenter Setup Script for Ubuntu Mini
-# Skrypt instalacyjny dla aplikacji Laravel MyCityCenter
+# Prosty i niezawodny skrypt instalacyjny dla aplikacji Laravel MyCityCenter
 
-set -e  # Zatrzymaj przy błędzie
+set -e
 
 echo "=========================================="
 echo "MyCityCenter - Setup Script (Laravel)"
 echo "=========================================="
 echo ""
-echo "UWAGA: Laravel 11 wymaga PHP 8.2 lub nowszej."
-echo "Skrypt automatycznie spróbuje zainstalować PHP 8.2, 8.1 lub 8.0."
-echo "Dla Ubuntu 18.04 może być potrzebna aktualizacja systemu."
-echo ""
 
-# Aktualizacja systemu
-echo "[1/12] Aktualizacja systemu..."
+# Krok 1: Czyszczenie nieprawidłowych repozytoriów
+echo "[1/13] Czyszczenie nieprawidłowych repozytoriów..."
+sudo rm -f /etc/apt/sources.list.d/sury-php.list 2>/dev/null || true
+sudo rm -f /usr/share/keyrings/deb.sury.org-php.gpg 2>/dev/null || true
+echo "✓ Nieprawidłowe repozytoria usunięte"
+
+# Krok 2: Aktualizacja systemu
+echo "[2/13] Aktualizacja systemu..."
 sudo apt-get update
 sudo apt-get upgrade -y
 
-# Instalacja niezbędnych narzędzi
-echo "[2/12] Instalacja podstawowych narzędzi..."
+# Krok 3: Instalacja podstawowych narzędzi
+echo "[3/13] Instalacja podstawowych narzędzi..."
 sudo apt-get install -y \
     git \
     curl \
@@ -33,219 +35,87 @@ sudo apt-get install -y \
     gnupg \
     lsb-release
 
-# Instalacja PHP i wymaganych rozszerzeń
-echo "[3/12] Instalacja PHP i rozszerzeń..."
-
-# Sprawdzenie wersji Ubuntu
+# Krok 4: Dodanie repozytorium PHP (tylko PPA ondrej/php)
+echo "[4/13] Dodawanie repozytorium PHP (PPA ondrej/php)..."
 UBUNTU_VERSION=$(lsb_release -rs)
 echo "Wykryto Ubuntu wersję: $UBUNTU_VERSION"
 
-# Dodanie repozytorium PHP
-echo "Dodawanie repozytorium PHP..."
-set +e
-PPA_ADDED=0
-
-# Próba 1: Standardowe PPA
-if sudo add-apt-repository ppa:ondrej/php -y >/dev/null 2>&1; then
-    PPA_ADDED=1
-    echo "Repozytorium PHP dodane pomyślnie (PPA)"
+# Sprawdź czy PPA już istnieje
+if ! grep -q "ondrej/php" /etc/apt/sources.list.d/*.list 2>/dev/null; then
+    sudo add-apt-repository ppa:ondrej/php -y
+    echo "✓ Repozytorium PPA dodane"
 else
-    echo "Nie udało się dodać PPA. Próba alternatywnej metody (DEB.SURY.ORG)..."
-
-    # Próba 2: DEB.SURY.ORG (bardziej niezawodne dla Ubuntu 18.04)
-    CODENAME=$(lsb_release -sc)
-    echo "Wykryto kodową nazwę dystrybucji: $CODENAME"
-
-    # Instalacja wymaganych narzędzi
-    sudo apt-get install -y software-properties-common apt-transport-https lsb-release ca-certificates curl
-
-    # Dodanie klucza GPG
-    if curl -fsSL https://packages.sury.org/php/apt.gpg | sudo gpg --dearmor -o /usr/share/keyrings/deb.sury.org-php.gpg 2>/dev/null; then
-        echo "Klucz GPG dodany pomyślnie"
-
-        # Dodanie repozytorium
-        echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $CODENAME main" | sudo tee /etc/apt/sources.list.d/sury-php.list >/dev/null
-
-        if [ $? -eq 0 ]; then
-            PPA_ADDED=1
-            echo "Repozytorium PHP dodane pomyślnie (DEB.SURY.ORG)"
-        fi
-    fi
-
-    # Próba 3: PPA z ustawionym locale
-    if [ $PPA_ADDED -eq 0 ]; then
-        echo "Próba dodania PPA z ustawionym locale..."
-        if sudo LC_ALL=C.UTF-8 add-apt-repository ppa:ondrej/php -y >/dev/null 2>&1; then
-            PPA_ADDED=1
-            echo "Repozytorium PHP dodane pomyślnie (PPA z locale)"
-        fi
-    fi
-fi
-set -e
-
-# Usuń nieprawidłowe repozytoria DEB.SURY.ORG jeśli istnieją (mogą powodować błędy)
-if [ -f /etc/apt/sources.list.d/sury-php.list ]; then
-    echo "Sprawdzanie repozytorium DEB.SURY.ORG..."
-    set +e
-    # Test czy repozytorium działa
-    curl -fsSL https://packages.sury.org/php/dists/$(lsb_release -sc)/InRelease >/dev/null 2>&1
-    if [ $? -ne 0 ]; then
-        echo "Repozytorium DEB.SURY.ORG nie działa, usuwanie..."
-        sudo rm -f /etc/apt/sources.list.d/sury-php.list
-        sudo rm -f /usr/share/keyrings/deb.sury.org-php.gpg
-    fi
-    set -e
+    echo "✓ Repozytorium PPA już istnieje"
 fi
 
 # Aktualizacja listy pakietów
-echo "Aktualizacja listy pakietów..."
-set +e
-sudo apt-get update 2>&1 | tee /tmp/apt_update.log
-APT_UPDATE_STATUS=${PIPESTATUS[0]}
-set -e
+sudo apt-get update
 
-# Sprawdź czy były błędy z repozytoriami
-if grep -q "418.*teapot\|I'm a teapot" /tmp/apt_update.log 2>/dev/null; then
-    echo "Wykryto problemy z repozytorium DEB.SURY.ORG, usuwanie..."
-    sudo rm -f /etc/apt/sources.list.d/sury-php.list 2>/dev/null || true
-    sudo rm -f /usr/share/keyrings/deb.sury.org-php.gpg 2>/dev/null || true
-    echo "Ponowna aktualizacja listy pakietów..."
-    sudo apt-get update
-fi
+# Krok 5: Instalacja PHP
+echo "[5/13] Instalacja PHP..."
+PHP_VER=""
 
-if [ $APT_UPDATE_STATUS -ne 0 ] && [ $PPA_ADDED -eq 0 ]; then
-    echo "OSTRZEŻENIE: Wystąpiły problemy z aktualizacją repozytoriów."
-    echo "Kontynuowanie z dostępnymi repozytoriami..."
-fi
-
-# Funkcja sprawdzająca dostępność pakietu
-check_package_available() {
-    local package=$1
-    apt-cache show "$package" >/dev/null 2>&1
-    return $?
-}
-
-# Funkcja do próby instalacji konkretnej wersji PHP
-install_php_version() {
-    local php_version=$1
-    echo "Próba instalacji PHP $php_version..."
-
-    # Sprawdź czy podstawowe pakiety są dostępne
-    if ! check_package_available "php${php_version}"; then
-        echo "Pakiet php${php_version} nie jest dostępny w repozytoriach"
-        return 1
-    fi
-
-    echo "Sprawdzanie dostępności pakietów PHP ${php_version}..."
-    set +e
-
-    # Lista pakietów do zainstalowania
-    local packages=(
-        "php${php_version}"
-        "php${php_version}-fpm"
-        "php${php_version}-cli"
-        "php${php_version}-common"
-        "php${php_version}-mysql"
-        "php${php_version}-pgsql"
-        "php${php_version}-zip"
-        "php${php_version}-gd"
-        "php${php_version}-mbstring"
-        "php${php_version}-curl"
-        "php${php_version}-xml"
-        "php${php_version}-bcmath"
-        "php${php_version}-intl"
-        "php${php_version}-readline"
-        "php${php_version}-tokenizer"
-    )
-
-    # Sprawdź dostępność wszystkich pakietów
-    local missing_packages=()
-    for pkg in "${packages[@]}"; do
-        if ! check_package_available "$pkg"; then
-            missing_packages+=("$pkg")
-        fi
-    done
-
-    if [ ${#missing_packages[@]} -gt 0 ]; then
-        echo "Brakujące pakiety: ${missing_packages[*]}"
-        echo "Próba instalacji dostępnych pakietów..."
-    fi
-
-    # Próba instalacji (pakiety, które nie istnieją zostaną pominięte)
-    sudo apt-get install -y "${packages[@]}" 2>&1 | tee /tmp/php_install.log
-
-    local install_status=${PIPESTATUS[0]}
-    set -e
-
-    # Sprawdź czy podstawowe pakiety zostały zainstalowane
-    if [ $install_status -eq 0 ] || command -v php${php_version} >/dev/null 2>&1; then
-        # Sprawdź czy php działa
-        if /usr/bin/php${php_version} -v >/dev/null 2>&1; then
-            echo "PHP $php_version zainstalowane pomyślnie!"
-            PHP_VER=$php_version
+# Funkcja instalacji PHP
+install_php() {
+    local version=$1
+    echo "  Próba instalacji PHP $version..."
+    
+    if sudo apt-get install -y \
+        php${version} \
+        php${version}-fpm \
+        php${version}-cli \
+        php${version}-common \
+        php${version}-mysql \
+        php${version}-pgsql \
+        php${version}-zip \
+        php${version}-gd \
+        php${version}-mbstring \
+        php${version}-curl \
+        php${version}-xml \
+        php${version}-bcmath \
+        php${version}-intl \
+        php${version}-readline \
+        php${version}-tokenizer 2>/dev/null; then
+        
+        if /usr/bin/php${version} -v >/dev/null 2>&1; then
+            PHP_VER=$version
+            echo "  ✓ PHP $version zainstalowane pomyślnie!"
             return 0
         fi
-    fi
-
-    echo "Nie udało się zainstalować PHP $php_version"
-    if [ -f /tmp/php_install.log ]; then
-        echo "Ostatnie błędy:"
-        tail -20 /tmp/php_install.log
     fi
     return 1
 }
 
-# Sprawdzenie dostępnych wersji PHP w repozytoriach
-echo "Sprawdzanie dostępnych wersji PHP w repozytoriach..."
-set +e
-AVAILABLE_VERSIONS=$(apt-cache search ^php[0-9] | grep -oP '^php\d+\.\d+' | sort -u | grep -oP '\d+\.\d+' | sort -V -r)
-set -e
-
-if [ -n "$AVAILABLE_VERSIONS" ]; then
-    echo "Dostępne wersje PHP:"
-    echo "$AVAILABLE_VERSIONS" | head -5
+# Próba instalacji PHP 8.2, 8.1, 8.0
+if install_php "8.2"; then
+    : # PHP 8.2 zainstalowane
+elif install_php "8.1"; then
+    : # PHP 8.1 zainstalowane
+elif install_php "8.0"; then
+    : # PHP 8.0 zainstalowane
+else
     echo ""
-fi
-
-# Próba instalacji PHP w kolejności: 8.2, 8.1, 8.0
-PHP_VER=""
-if ! install_php_version "8.2"; then
-    if ! install_php_version "8.1"; then
-        if ! install_php_version "8.0"; then
-            echo ""
-            echo "=========================================="
-            echo "BŁĄD: Nie udało się zainstalować PHP 8.0 lub nowszej wersji!"
-            echo "=========================================="
-            echo ""
-            echo "Laravel 11 wymaga PHP 8.2 lub nowszej."
-            echo ""
-            echo "Możliwe rozwiązania:"
-            echo "1. Zaktualizuj Ubuntu do wersji 20.04 lub nowszej"
-            echo "2. Ręczna instalacja PHP 8.2 z PPA:"
-            echo "   sudo add-apt-repository ppa:ondrej/php -y"
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install php8.2 php8.2-fpm php8.2-cli php8.2-common"
-            echo "   (i pozostałe rozszerzenia php8.2-*)"
-            echo "3. Użyj innej wersji Ubuntu (20.04 LTS lub 22.04 LTS)"
-            echo ""
-            exit 1
-        fi
-    fi
+    echo "=========================================="
+    echo "BŁĄD: Nie udało się zainstalować PHP!"
+    echo "=========================================="
+    echo ""
+    echo "Sprawdź dostępne wersje PHP:"
+    echo "  apt-cache search ^php[0-9] | grep -E '^php[0-9]'"
+    echo ""
+    echo "Dla Ubuntu 18.04 może być potrzebna aktualizacja do 20.04 LTS."
+    echo ""
+    exit 1
 fi
 
 # Ustawienie domyślnej wersji PHP
 sudo update-alternatives --set php /usr/bin/php${PHP_VER} 2>/dev/null || true
-
-# Eksport zmiennej dla użycia w dalszej części skryptu
 export PHP_VER
 
-# Weryfikacja instalacji PHP
 echo "Zainstalowana wersja PHP:"
 php -v
-echo "Używana wersja PHP: $PHP_VER"
 
-# Instalacja Composer
-echo "[4/12] Instalacja Composer..."
+# Krok 6: Instalacja Composer
+echo "[6/13] Instalacja Composer..."
 if ! command -v composer &> /dev/null; then
     cd /tmp
     curl -sS https://getcomposer.org/installer | php
@@ -254,23 +124,21 @@ if ! command -v composer &> /dev/null; then
 fi
 composer --version
 
-# Instalacja Node.js i npm
-echo "[5/12] Instalacja Node.js i npm..."
+# Krok 7: Instalacja Node.js i npm
+echo "[7/13] Instalacja Node.js i npm..."
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
 node -v
 npm -v
 
-# Instalacja PostgreSQL
-echo "[6/12] Instalacja PostgreSQL..."
+# Krok 8: Instalacja PostgreSQL
+echo "[8/13] Instalacja PostgreSQL..."
 sudo apt-get install -y postgresql postgresql-contrib
-
-# Uruchomienie PostgreSQL
 sudo systemctl start postgresql
 sudo systemctl enable postgresql
 
-# Konfiguracja bazy danych
-echo "[7/12] Konfiguracja bazy danych..."
+# Krok 9: Konfiguracja bazy danych
+echo "[9/13] Konfiguracja bazy danych..."
 sudo -u postgres psql <<EOF
 CREATE DATABASE mycitycenter;
 CREATE USER mycityuser WITH PASSWORD 'changeme123';
@@ -281,38 +149,39 @@ GRANT ALL PRIVILEGES ON DATABASE mycitycenter TO mycityuser;
 \q
 EOF
 
-# Klonowanie repozytorium
-echo "[8/12] Klonowanie repozytorium MyCityCenter..."
+# Krok 10: Klonowanie/kopiowanie repozytorium
+echo "[10/13] Przygotowanie repozytorium MyCityCenter..."
 cd /opt
 if [ -d "MyCityCenter" ]; then
-    echo "Katalog MyCityCenter już istnieje. Usuwanie..."
-    sudo rm -rf MyCityCenter
+    echo "  Katalog już istnieje, używam istniejącego..."
+    cd MyCityCenter
+    sudo git pull || true
+else
+    echo "  Klonowanie repozytorium..."
+    sudo git clone https://github.com/bartek-sudo/MyCityCenter.git
+    cd MyCityCenter
 fi
-sudo git clone https://github.com/bartek-sudo/MyCityCenter.git
-sudo chown -R $USER:$USER MyCityCenter
-cd MyCityCenter
+sudo chown -R $USER:$USER .
 
-# Instalacja zależności PHP
-echo "[9/12] Instalacja zależności PHP (Composer)..."
+# Krok 11: Instalacja zależności
+echo "[11/13] Instalacja zależności..."
+echo "  Instalacja zależności PHP (Composer)..."
 composer install --no-dev --optimize-autoloader
 
-# Instalacja zależności Node.js
-echo "[10/12] Instalacja zależności Node.js..."
+echo "  Instalacja zależności Node.js..."
 npm install
 
-# Budowanie frontendu
-echo "[10.5/12] Budowanie frontendu (Vite)..."
+echo "  Budowanie frontendu (Vite)..."
 npm run build
 
+# Krok 12: Konfiguracja aplikacji
+echo "[12/13] Konfiguracja aplikacji Laravel..."
+
 # Konfiguracja .env
-echo "[11/12] Konfiguracja pliku .env..."
 if [ ! -f .env ]; then
     if [ -f .env.example ]; then
         cp .env.example .env
     else
-        echo "UWAGA: Plik .env.example nie istnieje. Tworzenie podstawowego pliku .env..."
-        php artisan key:generate --show > /dev/null 2>&1 || true
-        # Utworzenie podstawowego .env jeśli nie istnieje
         cat > .env <<ENVEOF
 APP_NAME=MyCityCenter
 APP_ENV=production
@@ -353,16 +222,14 @@ sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=changeme123/' .env
 php artisan key:generate
 
 # Uruchomienie migracji
-echo "[11.5/12] Uruchomienie migracji bazy danych..."
 php artisan migrate --force
 
 # Konfiguracja uprawnień
-echo "[11.6/12] Konfiguracja uprawnień..."
 sudo chown -R www-data:www-data storage bootstrap/cache
 sudo chmod -R 775 storage bootstrap/cache
 
-# Instalacja Nginx
-echo "[12/12] Instalacja i konfiguracja Nginx..."
+# Krok 13: Konfiguracja Nginx
+echo "[13/13] Konfiguracja Nginx..."
 sudo apt-get install -y nginx
 
 # Konfiguracja Nginx dla Laravel
@@ -422,7 +289,7 @@ sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw --force enable
 
-# Utworzenie skryptu do tworzenia kopii zapasowych
+# Utworzenie skryptu kopii zapasowych
 echo "Tworzenie skryptu kopii zapasowych..."
 sudo tee /usr/local/bin/mycitycenter-backup.sh > /dev/null <<'EOF'
 #!/bin/bash
@@ -447,8 +314,9 @@ sudo chmod +x /usr/local/bin/mycitycenter-backup.sh
 # Konfiguracja cron dla kopii zapasowych (codziennie o 2:00)
 echo "0 2 * * * root /usr/local/bin/mycitycenter-backup.sh" | sudo tee -a /etc/crontab
 
+echo ""
 echo "=========================================="
-echo "Instalacja zakończona!"
+echo "Instalacja zakończona pomyślnie!"
 echo "=========================================="
 echo ""
 echo "Aplikacja działa na:"
@@ -459,12 +327,9 @@ echo "Przydatne komendy:"
 echo "  - Status Nginx: sudo systemctl status nginx"
 echo "  - Status PHP-FPM: sudo systemctl status php${PHP_VER}-fpm"
 echo "  - Status PostgreSQL: sudo systemctl status postgresql"
-echo "  - Logi Nginx: sudo tail -f /var/log/nginx/error.log"
 echo "  - Logi Laravel: tail -f /opt/MyCityCenter/storage/logs/laravel.log"
 echo "  - Restart Nginx: sudo systemctl restart nginx"
 echo "  - Restart PHP-FPM: sudo systemctl restart php${PHP_VER}-fpm"
-echo "  - Uruchomienie migracji: cd /opt/MyCityCenter && php artisan migrate"
-echo "  - Tworzenie kopii zapasowej: sudo /usr/local/bin/mycitycenter-backup.sh"
 echo ""
 echo "Baza danych PostgreSQL:"
 echo "  - Nazwa bazy: mycitycenter"
@@ -473,8 +338,6 @@ echo "  - Hasło: changeme123 (ZMIEŃ TO!)"
 echo ""
 echo "WAŻNE:"
 echo "  1. Zmień hasło bazy danych w pliku /opt/MyCityCenter/.env"
-echo "  2. Zmień hasło użytkownika PostgreSQL: sudo -u postgres psql -c \"ALTER USER mycityuser WITH PASSWORD 'nowe_haslo';\""
-echo "  3. Upewnij się, że firewall jest skonfigurowany poprawnie"
+echo "  2. Zmień hasło użytkownika PostgreSQL"
 echo ""
 echo "=========================================="
-
