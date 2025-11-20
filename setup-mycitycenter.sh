@@ -101,13 +101,13 @@ check_php_package() {
 install_php() {
     local version=$1
     echo "  Próba instalacji PHP $version..."
-    
+
     # Sprawdź czy pakiet jest dostępny
     if ! check_php_package "$version"; then
         echo "    Pakiet php${version} nie jest dostępny"
         return 1
     fi
-    
+
     set +e
     sudo apt-get install -y \
         php${version} \
@@ -125,10 +125,10 @@ install_php() {
         php${version}-intl \
         php${version}-readline \
         php${version}-tokenizer >/tmp/php_install_${version}.log 2>&1
-    
+
     local install_status=$?
     set -e
-    
+
     if [ $install_status -eq 0 ]; then
         if /usr/bin/php${version} -v >/dev/null 2>&1; then
             PHP_VER=$version
