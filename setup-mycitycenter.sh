@@ -83,26 +83,39 @@ else
 fi
 set -e
 
-# Dodaj również DEB.SURY.ORG jako dodatkowe repozytorium (może mieć więcej pakietów)
-CODENAME=$(lsb_release -sc)
-echo "Dodawanie dodatkowego repozytorium DEB.SURY.ORG..."
-set +e
-if [ ! -f /usr/share/keyrings/deb.sury.org-php.gpg ]; then
-    curl -fsSL https://packages.sury.org/php/apt.gpg | sudo gpg --dearmor -o /usr/share/keyrings/deb.sury.org-php.gpg 2>/dev/null
-    if [ $? -eq 0 ]; then
-        echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $CODENAME main" | sudo tee /etc/apt/sources.list.d/sury-php.list >/dev/null
-        echo "Repozytorium DEB.SURY.ORG dodane jako dodatkowe źródło"
+# Usuń nieprawidłowe repozytoria DEB.SURY.ORG jeśli istnieją (mogą powodować błędy)
+if [ -f /etc/apt/sources.list.d/sury-php.list ]; then
+    echo "Sprawdzanie repozytorium DEB.SURY.ORG..."
+    set +e
+    # Test czy repozytorium działa
+    curl -fsSL https://packages.sury.org/php/dists/$(lsb_release -sc)/InRelease >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "Repozytorium DEB.SURY.ORG nie działa, usuwanie..."
+        sudo rm -f /etc/apt/sources.list.d/sury-php.list
+        sudo rm -f /usr/share/keyrings/deb.sury.org-php.gpg
     fi
+    set -e
 fi
+
+# Aktualizacja listy pakietów
+echo "Aktualizacja listy pakietów..."
+set +e
+sudo apt-get update 2>&1 | tee /tmp/apt_update.log
+APT_UPDATE_STATUS=${PIPESTATUS[0]}
 set -e
 
-if [ $PPA_ADDED -eq 1 ] || [ -f /etc/apt/sources.list.d/sury-php.list ]; then
-    echo "Aktualizacja listy pakietów..."
+# Sprawdź czy były błędy z repozytoriami
+if grep -q "418.*teapot\|I'm a teapot" /tmp/apt_update.log 2>/dev/null; then
+    echo "Wykryto problemy z repozytorium DEB.SURY.ORG, usuwanie..."
+    sudo rm -f /etc/apt/sources.list.d/sury-php.list 2>/dev/null || true
+    sudo rm -f /usr/share/keyrings/deb.sury.org-php.gpg 2>/dev/null || true
+    echo "Ponowna aktualizacja listy pakietów..."
     sudo apt-get update
-else
-    echo "OSTRZEŻENIE: Nie udało się dodać repozytorium PHP."
-    echo "Próba instalacji PHP z domyślnych repozytoriów Ubuntu..."
-    sudo apt-get update
+fi
+
+if [ $APT_UPDATE_STATUS -ne 0 ] && [ $PPA_ADDED -eq 0 ]; then
+    echo "OSTRZEŻENIE: Wystąpiły problemy z aktualizacją repozytoriów."
+    echo "Kontynuowanie z dostępnymi repozytoriami..."
 fi
 
 # Funkcja sprawdzająca dostępność pakietu
